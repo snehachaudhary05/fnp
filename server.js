@@ -20,12 +20,17 @@ const productWebhook = require("./routes/webhooks/products");
 const app = express();
 
 // --- Middleware ---
+// Allow both Vercel domains for production frontend
 app.use(
   cors({
-    origin: "https://fnp-frontend-git-main-snehachaudhary05s-projects.vercel.app",
+    origin: [
+      "https://fnp-frontend-git-main-snehachaudhary05s-projects.vercel.app",
+      "https://fnp-frontend.vercel.app"
+    ],
     credentials: true,
   })
 );
+
 app.use(express.json());
 
 // --- Webhook Routes ---
