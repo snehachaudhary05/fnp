@@ -79,7 +79,8 @@ async function shopifyGet(path, params = {}) {
 
 // --- Sync Tables ---
 async function syncTables() {
-  await sequelize.sync({ alter: true });
+  await sequelize.sync({ alter: { dropForeignKeys: false } });
+
   console.log("✅ Database tables ready.");
 }
 

@@ -6,7 +6,7 @@ const cors = require("cors");
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
 }
-
+require("./shopifyTest")
 const sequelize = require("./db");
 const ingestRoutes = require("./routes/ingest");
 const metricsRoutes = require("./routes/metrics");
