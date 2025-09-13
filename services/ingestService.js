@@ -3,7 +3,8 @@ const { Customer, Order, Product } = require("../models/Associations");
 require("dotenv").config();
 
 const SHOP_NAME = "sneha-xeno-store.myshopify.com"; // e.g., sneha-xeno-store.myshopify.com
-const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN; // Admin API access token
+const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
+ // Admin API access token
 const tenantId = SHOP_NAME.split(".")[0]; // tenant identifier
 
 // Helper function to fetch data from Shopify API
