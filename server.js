@@ -20,13 +20,28 @@ const productWebhook = require("./routes/webhooks/products");
 const app = express();
 
 // --- Middleware ---
-// Allow both Vercel domains for production frontend
+// ✅ Dynamic CORS to allow production + any Vercel preview subdomain
+const allowedOrigins = ["https://fnp-frontend.vercel.app"];
+
 app.use(
   cors({
-    origin: [
-      "https://fnp-frontend-git-main-snehachaudhary05s-projects.vercel.app",
-      "https://fnp-frontend.vercel.app"
-    ],
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true); // allow Postman / curl
+
+      try {
+        const hostname = new URL(origin).hostname;
+        if (
+          allowedOrigins.includes(origin) ||
+          hostname.endsWith(".vercel.app") // ✅ allow all Vercel preview domains
+        ) {
+          callback(null, true);
+        } else {
+          callback(new Error("Not allowed by CORS: " + origin));
+        }
+      } catch (err) {
+        callback(new Error("Invalid origin"));
+      }
+    },
     credentials: true,
   })
 );
@@ -61,7 +76,7 @@ const PORT = process.env.PORT || 5000;
     await sequelize.authenticate();
     console.log("✅ Database connected successfully");
 
-    // ✅ Sync models (use alter: true for dev, migrations for prod)
+    // ✅ Sync models
     await sequelize.sync({ alter: true });
     console.log("✅ Models synced successfully");
 
@@ -71,6 +86,6 @@ const PORT = process.env.PORT || 5000;
     });
   } catch (err) {
     console.error("❌ DB connection failed:", err.message);
-    process.exit(1); // Exit if DB connection fails
+    process.exit(1);
   }
 })();
