@@ -1,62 +1,71 @@
 // server.js
 const express = require("express");
 const cors = require("cors");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const { Sequelize, DataTypes } = require("sequelize");
-const axios = require("axios");
-require("dotenv").config();
 
-// --- Database Setup ---
-const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
-  {
-    host: process.env.DB_HOST || "localhost",
-    port: process.env.DB_PORT || 3306,
-    dialect: process.env.DB_DIALECT || "mysql",
-    logging: false,
-  }
-);
+// ✅ Load dotenv only in local development
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
+}
 
-// ... your model definitions and Shopify sync functions ...
+const sequelize = require("./db");
+const ingestRoutes = require("./routes/ingest");
+const metricsRoutes = require("./routes/metrics");
+const authRoutes = require("./routes/auth");
+const { Customer, Order, Product } = require("./models/Associations");
 
-// --- Express App ---
+const customerWebhook = require("./routes/webhooks/customers");
+const orderWebhook = require("./routes/webhooks/orders");
+const productWebhook = require("./routes/webhooks/products");
+
 const app = express();
 
-// ✅ CORS configured for Vercel frontend
-app.use(cors({
-  origin: "https://fnp-frontend-git-main-snehachaudhary05s-projects.vercel.app",
-  credentials: true,
-}));
-
+// --- Middleware ---
+app.use(
+  cors({
+    origin: "https://fnp-frontend-git-main-snehachaudhary05s-projects.vercel.app",
+    credentials: true,
+  })
+);
 app.use(express.json());
 
-// --- Auth Routes ---
-app.post("/auth/register", async (req, res) => {
-  const { tenantId, email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: "Missing fields" });
+// --- Webhook Routes ---
+app.use("/webhook/customers", customerWebhook);
+app.use("/webhook/orders", orderWebhook);
+app.use("/webhook/products", productWebhook);
 
-  const hashed = await bcrypt.hash(password, 10);
+// --- API Routes ---
+app.use("/ingest", ingestRoutes);
+app.use("/metrics", metricsRoutes);
+app.use("/auth", authRoutes);
+
+// --- Health Check ---
+app.get("/", (req, res) => res.json({ status: "✅ Service is running" }));
+
+// --- Error Handling Middleware ---
+app.use((err, req, res, next) => {
+  console.error("❌ Server error:", err.message);
+  res.status(500).json({ error: "Internal Server Error" });
+});
+
+// --- Start Server ---
+const PORT = process.env.PORT || 5000;
+
+(async () => {
   try {
-    await AppUser.create({ tenantId, email, password: hashed });
-    res.json({ success: true });
+    // ✅ Authenticate database
+    await sequelize.authenticate();
+    console.log("✅ Database connected successfully");
+
+    // ✅ Sync models (use alter: true for dev, migrations for prod)
+    await sequelize.sync({ alter: true });
+    console.log("✅ Models synced successfully");
+
+    // ✅ Start Express server
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+    });
   } catch (err) {
-    res.status(500).json({ error: "Registration failed" });
+    console.error("❌ DB connection failed:", err.message);
+    process.exit(1); // Exit if DB connection fails
   }
-});
-
-app.post("/auth/login", async (req, res) => {
-  const { email, password } = req.body;
-  const user = await AppUser.findOne({ where: { email } });
-  if (!user) return res.status(401).json({ error: "Invalid credentials" });
-
-  const valid = await bcrypt.compare(password, user.password);
-  if (!valid) return res.status(401).json({ error: "Invalid credentials" });
-
-  const token = jwt.sign({ id: user.id, tenantId: user.tenantId }, "secret", { expiresIn: "1h" });
-  res.json({ token });
-});
-
-// ... your webhook routes, metrics, health check, and server start ...
+})();
